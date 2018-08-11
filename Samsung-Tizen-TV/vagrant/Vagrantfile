@@ -1,3 +1,124 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "base"
+
+  config.vm.box = "ubuntu/xenial64"
+  config.vm.box_version = "20180806.0.0"
+  config.vm.box_check_update = false
+
+  # Prefer to use VirtualBox
+  config.vm.provider "virtualbox"
+
+  config.vm.network "public_network"
+  config.disksize.size = "25GB"
+
+  config.vm.provider "virtualbox" do |vb|
+    # Set the VM name
+    vb.name = "Samsung Tizen TV Dev"
+
+    # Display the VirtualBox GUI when booting the machine
+    vb.gui = false
+
+    # Customize the amount of memory on the VM:
+    vb.memory = "4096"
+    vb.cpus = 2
+    vb.customize ["modifyvm", :id, "--cpuexecutioncap", "100"]
+
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+
+    # Oracle Java JDK - Add the repo for Java
+    #   https://www.digitalocean.com/community/tutorials/how-to-install-java-with-apt-on-ubuntu-18-04
+    add-apt-repository -y ppa:webupd8team/java
+
+    # Update the package lists
+    apt-get update
+
+    # Install Virtualbox Guest packages to make it easier to work with the VM as an IDE in VirtualBox
+    #apt-get install -y virtualbox-guest-dkms virtualbox-guest-utils virtualbox-guest-x11
+
+    # Install GUI to work with
+
+        # Basic GNOME desktop
+    #apt-get install -y gnome-core
+
+        # Ubuntu full GNOME desktop
+    #apt-get install -y gnome-shell ubuntu-gnome-desktop
+
+        # A lightweight and fast desktop
+    #apt-get install -y xfce4
+
+    # Install Oracle Java JDK
+    echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-selections
+    echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections
+    apt-get install -y oracle-java8-installer
+
+
+    # Tizen Studio Download
+    #   https://developer.tizen.org/development/tizen-studio/download
+    #
+    # Tizen Studio Installation Guide
+    #   https://developer.tizen.org/development/tizen-studio/download/installing-tizen-studio
+    #
+    # Tizen Studio 2.4 Download - Ubuntu
+    #   http://download.tizen.org/sdk/Installer/tizen-studio_2.4/web-ide_Tizen_Studio_2.4_ubuntu-64.bin
+    #   http://download.tizen.org/sdk/Installer/tizen-studio_2.4/web-cli_Tizen_Studio_2.4_ubuntu-64.bin
+
+    # Get the CLI install files for Samsung Tizen Studio
+    wget -c http://download.tizen.org/sdk/Installer/tizen-studio_2.4/web-cli_Tizen_Studio_2.4_ubuntu-64.bin
+
+    # Install Samsung Tizen Studio from the CLI
+    chmod +x web-cli_Tizen_Studio_2.4_ubuntu-64.bin
+
+    # Install prerequisite packages for the Tizen Studio IDE
+    apt-get install -y zip
+    apt-get install -y libwebkitgtk-1.0-0
+    apt-get install -y cpio
+    apt-get install -y rpm2cpio
+
+  SHELL
+
+  config.vm.provision "shell", privileged: false, inline: <<-SHELL
+
+    # Install Samsung Tizen Studio from the CLI
+    ./web-cli_Tizen_Studio_2.4_ubuntu-64.bin --accept-license ~/samsung/tizen-studio
+
+    # Install Samsung Tizen Packages from the CLI
+    cd ~/samsung/tizen-studio/package-manager
+
+    #   Remove unwanted packages before the update
+    ./package-manager-cli.bin uninstall MOBILE-4.0-WebAppDevelopment-CLI,WEARABLE-4.0-WebAppDevelopment-CLI,MOBILE-3.0-WebAppDevelopment-CLI,WEARABLE-3.0-WebAppDevelopment-CLI,MOBILE-2.4-WebAppDevelopment-CLI,WEARABLE-2.3.2-WebAppDevelopment-CLI,MOBILE-2.3.1-WebAppDevelopment-CLI,WEARABLE-2.3.1-WebAppDevelopment-CLI,MOBILE-2.3-WebAppDevelopment-CLI,WEARABLE-2.3-WebAppDevelopment-CLI
+
+    #   Update to the latest packages
+    ./package-manager-cli.bin update
+
+  SHELL
+
+  config.vm.provision "shell", privileged: false, inline: <<-SHELL
+
+    # Install Samsung Tizen Packages from the CLI
+    cd ~/samsung/tizen-studio/package-manager
+    ./package-manager-cli.bin install --accept-license TV-4.0,TV-4.0-WebAppDevelopment,AdvancedTV-4.0
+    ./package-manager-cli.bin install --accept-license TV-samsung-extension-tools,TV-samsung-extension-resources
+
+  SHELL
+
+  config.vm.provision "shell", privileged: true, inline: <<-SHELL
+
+    # Requires for TOOLS,baseline-SDK,NativeCLI,NativeIDE,NativeToolchain
+    apt-get install -y expect
+    apt-get install -y gettext
+    apt-get install -y python2.7
+    apt-get install -y ruby
+
+  SHELL
+
+  config.vm.provision "shell", privileged: false, inline: <<-SHELL
+
+    # Install Samsung Tizen Packages from the CLI
+    cd ~/samsung/tizen-studio/package-manager
+    ./package-manager-cli.bin install --accept-license TOOLS,baseline-SDK,NativeCLI,NativeIDE,NativeToolchain
+    ./package-manager-cli.bin install --accept-license cert-add-on
+
+  SHELL
+
 end
